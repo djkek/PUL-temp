@@ -54,6 +54,9 @@ signal slope : std_logic_vector(7 downto 0) := (others => '0');
 -- je?eli liczymy co 2 s to mamy ju? 40 bo mamy 2 stopnie ró?nicy
 -- zatem trzeba znormalizowa?
 
+-- zrobi? tak ?eby pomiar by? niezale?ny, non stop np. co 100 ms
+-- tak aby temp, temp_old i slope by?y dostepne ca?y czas na bie??co
+
 
 begin
 
@@ -184,6 +187,9 @@ if rising_edge(Clock100Mhz) then
             -- (30 - temp)/((temp-tempold)/okres)
             
         when Maintain =>
+            if timedone = '1' then
+                StateNext <= Measure;
+            end if;
             if temp > 38 and temp < 42 then
                 StateNext <= Maintain;
             else
