@@ -40,7 +40,8 @@ signal pwm_ff : std_logic_vector(16 downto 0) := (others => '0');
 signal pwm_counter : std_logic_vector(16 downto 0) := (others => '0');
 
 signal Clock500kHz : std_logic := '0';
-signal clockcounter : std_logic_vector(7 downto 0) := (others => '0');
+signal clockcounter : std_logic_vector(13 downto 0) := (others => '0');
+signal clockfrequency : integer := 500; --kHz
 
 signal PWM_OUT : std_logic := '0';
 
@@ -64,7 +65,7 @@ clockgen: process(Clock100MHz)
 begin
 if rising_edge(Clock100MHz) then
     clockcounter <= clockcounter + "01";
-    if clockcounter = "11001000" then
+    if clockcounter = (50000/clockfrequency) then --"11001000" then
         Clock500kHz <= not Clock500kHz;
         clockcounter <= (others => '0');
     end if;
