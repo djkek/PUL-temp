@@ -27,7 +27,7 @@ end component;
 signal Clock100MHz  : STD_LOGIC;
 constant ClockPeriod	: time := 10 ns; 
 
-signal SW0 : std_logic := '0';
+signal SW0 : std_logic := '1';
 signal ADC_DOUT : std_logic := '0';
 
 signal ADC_CLK : std_logic := '0';
@@ -39,6 +39,8 @@ signal LED2 : std_logic := '0';
 signal LED3 : std_logic := '0'; -- docelowa temp
 signal LED0_R : std_logic := '0'; -- powy?ej docelowej
 
+signal testADC : std_logic_vector(14 downto 0) := "101010101010---";
+signal counter : integer := 0;
 
 begin
 
@@ -50,9 +52,17 @@ begin
 	wait for ClockPeriod - (ClockPeriod/2);
 end process;
 
-p_Stimulus : process
+p_Stimulus : process(ADC_CLK)
 begin
-	wait for 3 us;
+	if ADC_CS = '0' and counter < 15 then
+	   if falling_edge(ADC_CLK) then
+	       counter <= counter + 1;
+	       ADC_DOUT <= testADC(counter);  
+	   end if;
+	end if;
+	if ADC_CS = '1' and counter = 15 then
+        counter <= 0;
+	end if;
 	--assert false severity failure;
 end process;
 

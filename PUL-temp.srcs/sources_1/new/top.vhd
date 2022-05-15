@@ -28,6 +28,7 @@ signal State, StateNext : stany := Idle;
 
 signal timecounter : std_logic_vector(10 downto 0) := (others => '0');
 signal timedone : std_logic := '0';
+signal timetocount : integer := 100; --ms - czas od rozpoczecia grzania do wykonania pomiaru
 
 signal bitcounter : std_logic_vector(3 downto 0) := (others => '0');
 signal bitdone : std_logic := '0';
@@ -39,9 +40,11 @@ signal pwm_period : std_logic_vector(16 downto 0) := "11000011010100000";
 signal pwm_ff : std_logic_vector(16 downto 0) := (others => '0');
 signal pwm_counter : std_logic_vector(16 downto 0) := (others => '0');
 
-signal Clock500kHz : std_logic := '0';
+signal Clock_kHz : std_logic := '0';
 signal clockcounter : std_logic_vector(13 downto 0) := (others => '0');
+
 signal clockfrequency : integer := 500; --kHz
+signal measureperiod : integer := 10; --ms
 
 signal PWM_OUT : std_logic := '0';
 
@@ -66,7 +69,7 @@ begin
 if rising_edge(Clock100MHz) then
     clockcounter <= clockcounter + "01";
     if clockcounter = (50000/clockfrequency) then --"11001000" then
-        Clock500kHz <= not Clock500kHz;
+        Clock_kHz <= not Clock_kHz;
         clockcounter <= (others => '0');
     end if;
 end if;
@@ -88,7 +91,7 @@ begin
 if rising_edge(Clock100MHz) then
     if State = Heating then
         timecounter <= timecounter + "01";
-        if timecounter = "11111111111" then
+        if timecounter = 1000 then
             timedone <= '1';
             timecounter <= (others => '0');
         end if;
@@ -99,21 +102,18 @@ end process count_time;
 
 wyjscia: process(Clock100MHz)
 begin
+    ADC_CLK <= Clock_kHz;
+    ADC_CS <= '1';
+    PWM <= '0';
+    
     case state is
         when Idle =>
             ADC_CLK <= '0';
-            ADC_CS <= '1';
-            PWM <= '0';
             
         when Init =>
-            ADC_CS <= '1';
-            ADC_CLK <= '0';
-            
             
             
         when Heating =>
-            ADC_CS <= '1';
-            ADC_CLK <= '0';
             PWM <= PWM_OUT;
             if temp > 25 then
                 LED0 <= '1';
@@ -129,16 +129,13 @@ begin
             end if;
             
         when Measure =>
-            ADC_CLK <= Clock500kHz;
             ADC_CS <= '0';
             
         when Correction =>
-            ADC_CLK <= '0';
-            ADC_CS <= '1';
+            
             
         when Maintain =>
-            ADC_CLK <= '0';
-            ADC_CS <= '1';
+            PWM <= PWM_OUT;
             LED0 <= '1';
             LED1 <= '1';
             LED2 <= '1';
@@ -201,35 +198,38 @@ if rising_edge(Clock100Mhz) then
 end if;
 end process przejscia;
 
-receive_temp: process(Clock500kHz)
+receive_temp: process(Clock_kHz)
 begin
-if rising_edge(Clock500kHz) then
+if rising_edge(Clock_kHz) then
     if State = Measure then
         if bitdone = '0' then
             if bitcounter = 0 then
                 temp_old <= temp;
             end if;
+            
             bitcounter <= bitcounter + "01";
-            if bitcounter > 3 then
-                temp <= shift_left(temp, 1);
+
+            if bitcounter >= 3 then
+                temp <= shift_right(temp, 1);
                 temp(11) <= ADC_DOUT;
             end if;
-            if bitcounter = 15 then
+            if bitcounter = 14 then
                 bitdone <= '1';
-                bitcounter <= (others => '0');
             end if;
         end if;
-    elsif State = Correction then
+    else
         bitdone <= '0';
+        bitcounter <= (others => '0');
     end if;
 end if;
 end process receive_temp;
 
-Calculate_Slope: process(State)
+Calculate_Slope: process(Clock100MHz)
 begin
 if rising_edge(Clock100MHz) and State = Correction and temp_old /= ("------------") then
     
     pwm_ff <= (others => '0'); -- korekta pwm
+    
 end if;
 end process Calculate_Slope;
 
