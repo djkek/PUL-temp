@@ -23,7 +23,7 @@ Port (
 end top;
 
 architecture Behavioral of top is
-type stany is (Idle, Init, Heating, Measure, Correction, Maintain);
+type stany is (Idle, Init, Heating, Measure, TooHot);
 signal State, StateNext : stany := Idle;
 
 signal timecounter : std_logic_vector(10 downto 0) := (others => '0');
@@ -33,12 +33,11 @@ signal timetocount : integer := 100; --ms - czas od rozpoczecia grzania do wykon
 signal bitcounter : std_logic_vector(3 downto 0) := (others => '0');
 signal bitdone : std_logic := '0';
 
-signal temp : unsigned(11 downto 0) := (others => '-');
-signal temp_old : unsigned(11 downto 0) := (others => '-');
+signal temp : integer := 0; -- stopnie C
 
-signal pwm_period : std_logic_vector(16 downto 0) := "11000011010100000";
-signal pwm_ff : std_logic_vector(16 downto 0) := (others => '0');
-signal pwm_counter : std_logic_vector(16 downto 0) := (others => '0');
+signal pwm_period : std_logic_vector(13 downto 0) := "10011100010000";
+signal pwm_ff : std_logic_vector(13 downto 0) := (others => '0');
+signal pwm_counter : std_logic_vector(13 downto 0) := (others => '0');
 
 signal Clock_kHz : std_logic := '0';
 signal clockcounter : std_logic_vector(13 downto 0) := (others => '0');
@@ -50,17 +49,6 @@ signal PWM_OUT : std_logic := '0';
 
 signal slope_target : std_logic_vector(7 downto 0) := (others => '0');
 signal slope : std_logic_vector(7 downto 0) := (others => '0');
--- jednostka - binarny odpopwiednik stopni na 1 pwm_period
--- np. 1 stopien C /s wychodzi
--- 19,5 = oko?o 20
--- czyli 10100
---
--- je?eli liczymy co 2 s to mamy ju? 40 bo mamy 2 stopnie ró?nicy
--- zatem trzeba znormalizowa?
-
--- zrobi? tak ?eby pomiar by? niezale?ny, non stop np. co 100 ms
--- tak aby temp, temp_old i slope by?y dostepne ca?y czas na bie??co
-
 
 begin
 
@@ -89,7 +77,7 @@ end process reg;
 count_time: process(Clock100MHz)
 begin
 if rising_edge(Clock100MHz) then
-    if State = Heating then
+    if State = Heating or State = TooHot then
         timecounter <= timecounter + "01";
         if timecounter = 1000 then
             timedone <= '1';
@@ -99,6 +87,35 @@ if rising_edge(Clock100MHz) then
     end if;
 end if;
 end process count_time;
+
+lampki: process(temp)
+begin
+
+LED0 <= '0';
+LED1 <= '0';
+LED2 <= '0';
+LED3 <= '0';
+LED0_R <= '0';
+
+if State /= Idle then
+    if temp > 25 then
+        LED0 <= '1';
+    end if;
+    if temp > 30 then
+        LED1 <= '1';
+    end if;
+    if temp > 35 then
+        LED2 <= '1';
+    end if;
+    if temp > 39 then
+        LED3 <= '1';
+    end if;
+    if State = TooHot then
+        LED0_R <= '1';
+    end if;
+        
+end if;
+end process;
 
 wyjscia: process(Clock100MHz)
 begin
@@ -111,35 +128,15 @@ begin
             ADC_CLK <= '0';
             
         when Init =>
-            
-            
+
         when Heating =>
             PWM <= PWM_OUT;
-            if temp > 25 then
-                LED0 <= '1';
-            end if;
-            if temp > 30 then
-                LED1 <= '1';
-            end if;
-            if temp > 35 then
-                LED2 <= '1';
-            end if;
-            if temp > 42 then
-                LED0_R <= '1';
-            end if;
-            
+
         when Measure =>
             ADC_CS <= '0';
             
-        when Correction =>
-            
-            
-        when Maintain =>
-            PWM <= PWM_OUT;
-            LED0 <= '1';
-            LED1 <= '1';
-            LED2 <= '1';
-            LED3 <= '1';
+        when TooHot =>
+
     end case;
 end process wyjscia;
 
@@ -159,39 +156,22 @@ if rising_edge(Clock100Mhz) then
         when Init =>
             StateNext <= Heating;
             
-        when Heating => -- tu tylko kontrolujemy slopa
+        when Heating =>
+            if timedone = '1' then
+                StateNext <= Measure;
+            end if;
+
+        when TooHot =>
             if timedone = '1' then
                 StateNext <= Measure;
             end if;
             
         when Measure =>
             if bitdone = '1' then
-                StateNext <= Correction;
-            end if;
-            
-        when Correction =>
-            if temp > 38 and temp < 42 then
-                StateNext <= Maintain;
-            else
-                StateNext <= Heating;
-            end if;
-            
-            -- dostaje info o temperaturze obecnej
-            -- je?eli w dobrym zakresie -> maintain
-            -- je?eli w z?ym -> liczy slopa
-            -- je?eli ok -> heating bez korekty
-            -- je?eli nie -> korekta PWM a potem heating
-            
-            -- (30 - temp)/((temp-tempold)/okres)
-            
-        when Maintain =>
-            if timedone = '1' then
-                StateNext <= Measure;
-            end if;
-            if temp > 38 and temp < 42 then
-                StateNext <= Maintain;
-            else
-                StateNext <= Heating;
+                if (temp >= 41) then
+                    StateNext <= TooHot;
+                else StateNext <= Heating;
+                end if;
             end if;
     end case;
     end if;
@@ -199,22 +179,23 @@ end if;
 end process przejscia;
 
 receive_temp: process(Clock_kHz)
+
+variable temp_ADC : unsigned(11 downto 0);
+
 begin
 if rising_edge(Clock_kHz) then
     if State = Measure then
         if bitdone = '0' then
-            if bitcounter = 0 then
-                temp_old <= temp;
-            end if;
             
             bitcounter <= bitcounter + "01";
 
             if bitcounter >= 3 then
-                temp <= shift_right(temp, 1);
-                temp(11) <= ADC_DOUT;
+                temp_ADC := shift_right(temp_ADC, 1);
+                temp_ADC(11) := ADC_DOUT;
             end if;
             if bitcounter = 14 then
                 bitdone <= '1';
+                temp <= ((to_integer(temp_ADC)) - 400)/20;
             end if;
         end if;
     else
@@ -224,14 +205,18 @@ if rising_edge(Clock_kHz) then
 end if;
 end process receive_temp;
 
-Calculate_Slope: process(Clock100MHz)
+FF_control: process(temp)
 begin
-if rising_edge(Clock100MHz) and State = Correction and temp_old /= ("------------") then
-    
-    pwm_ff <= (others => '0'); -- korekta pwm
-    
-end if;
-end process Calculate_Slope;
+    if (temp < 25) then
+        pwm_ff <= "01111101000000"; -- 80%
+    elsif (temp < 30) then
+        pwm_ff <= "01011101110000"; -- 60%
+    elsif (temp < 35) then
+        pwm_ff <= "01001110001000"; -- 50%
+    elsif (temp > 35) then
+        pwm_ff <= "01000110010100"; -- 45%
+    end if;
+end process FF_control;
 
 PWM_gen: process(Clock100MHz)
 begin
