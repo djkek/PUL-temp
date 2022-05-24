@@ -28,7 +28,7 @@ signal State, StateNext : stany := Idle;
 
 signal timecounter : std_logic_vector(10 downto 0) := (others => '0');
 signal timedone : std_logic := '0';
-signal timetocount : integer := 100; --ms - czas od rozpoczecia grzania do wykonania pomiaru
+--signal timetocount : integer := 100; --ms - czas od rozpoczecia grzania do wykonania pomiaru
 
 signal bitcounter : std_logic_vector(3 downto 0) := (others => '0');
 signal bitdone : std_logic := '0';
@@ -43,12 +43,12 @@ signal Clock_kHz : std_logic := '0';
 signal clockcounter : std_logic_vector(13 downto 0) := (others => '0');
 
 signal clockfrequency : integer := 500; --kHz
-signal measureperiod : integer := 10; --ms
+--signal measureperiod : integer := 10; --ms
 
 signal PWM_OUT : std_logic := '0';
 
-signal slope_target : std_logic_vector(7 downto 0) := (others => '0');
-signal slope : std_logic_vector(7 downto 0) := (others => '0');
+--signal slope_target : std_logic_vector(7 downto 0) := (others => '0');
+--signal slope : std_logic_vector(7 downto 0) := (others => '0');
 
 begin
 
