@@ -30,7 +30,7 @@ signal timecounter : integer := 0;
 signal timedone : std_logic := '0';
 --signal timetocount : integer := 100; --ms - czas od rozpoczecia grzania do wykonania pomiaru
 
-signal bitcounter : std_logic_vector(3 downto 0) := (others => '0');
+signal bitcounter : integer := 0;
 signal bitdone : std_logic := '0';
 
 signal temp : integer := 0; -- stopnie C
@@ -131,7 +131,7 @@ begin
         when Init =>
 
         when Heating =>
-            --PWM <= PWM_OUT;
+            PWM <= PWM_OUT;
 
         when Measure =>
             ADC_CS <= '0';
@@ -185,20 +185,20 @@ if rising_edge(Clock_kHz) then
     if State = Measure then
         if bitdone = '0' then
             
-            bitcounter <= bitcounter + "01";
+            bitcounter <= bitcounter + 1;
 
-            if bitcounter >= 3 then
-                temp_ADC <= shift_right(temp_ADC, 1);
-                temp_ADC(11) <= ADC_DOUT;
+            if bitcounter >= 3 and bitcounter < 15 then
+                temp_ADC <= shift_left(temp_ADC, 1);
+                temp_ADC(0) <= ADC_DOUT;
             end if;
-            if bitcounter = 14 then
+            if bitcounter = 15 then
                 bitdone <= '1';
-                temp <= ((to_integer(temp_ADC)) - 400)/20;
+                temp <= (to_integer(temp_ADC) - 400)/20;
             end if;
         end if;
     else
         bitdone <= '0';
-        bitcounter <= (others => '0');
+        bitcounter <= 0;
     end if;
 end if;
 end process receive_temp;
