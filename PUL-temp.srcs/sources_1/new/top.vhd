@@ -26,7 +26,7 @@ architecture Behavioral of top is
 type stany is (Idle, Init, Heating, Measure, TooHot);
 signal State, StateNext : stany := Idle;
 
-signal timecounter : std_logic_vector(10 downto 0) := (others => '0');
+signal timecounter : integer := 0;
 signal timedone : std_logic := '0';
 --signal timetocount : integer := 100; --ms - czas od rozpoczecia grzania do wykonania pomiaru
 
@@ -78,10 +78,10 @@ count_time: process(Clock100MHz)
 begin
 if rising_edge(Clock100MHz) then
     if State = Heating or State = TooHot then
-        timecounter <= timecounter + "01";
-        if timecounter = 1000 then
+        timecounter <= timecounter + 1;
+        if timecounter = 100000 then
             timedone <= '1';
-            timecounter <= (others => '0');
+            timecounter <= 0;
         end if;
     else timedone <= '0';
     end if;
@@ -130,7 +130,7 @@ begin
         when Init =>
 
         when Heating =>
-            PWM <= PWM_OUT;
+            --PWM <= PWM_OUT;
 
         when Measure =>
             ADC_CS <= '0';

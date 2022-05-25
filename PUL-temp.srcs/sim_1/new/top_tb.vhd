@@ -39,7 +39,7 @@ signal LED2 : std_logic := '0';
 signal LED3 : std_logic := '0'; -- docelowa temp
 signal LED0_R : std_logic := '0'; -- powy?ej docelowej
 
-signal testADC : std_logic_vector(14 downto 0) := "101010101010---";
+signal testADC : std_logic_vector(14 downto 0) := "1HL01HL01HL0---";
 signal counter : integer := 0;
 
 begin
