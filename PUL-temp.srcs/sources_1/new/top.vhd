@@ -34,6 +34,7 @@ signal bitcounter : std_logic_vector(3 downto 0) := (others => '0');
 signal bitdone : std_logic := '0';
 
 signal temp : integer := 0; -- stopnie C
+signal temp_ADC : unsigned(11 downto 0) := (others => '-');
 
 signal pwm_period : std_logic_vector(13 downto 0) := "10011100010000";
 signal pwm_ff : std_logic_vector(13 downto 0) := (others => '0');
@@ -179,9 +180,6 @@ end if;
 end process przejscia;
 
 receive_temp: process(Clock_kHz)
-
-variable temp_ADC : unsigned(11 downto 0);
-
 begin
 if rising_edge(Clock_kHz) then
     if State = Measure then
@@ -190,8 +188,8 @@ if rising_edge(Clock_kHz) then
             bitcounter <= bitcounter + "01";
 
             if bitcounter >= 3 then
-                temp_ADC := shift_right(temp_ADC, 1);
-                temp_ADC(11) := ADC_DOUT;
+                temp_ADC <= shift_right(temp_ADC, 1);
+                temp_ADC(11) <= ADC_DOUT;
             end if;
             if bitcounter = 14 then
                 bitdone <= '1';

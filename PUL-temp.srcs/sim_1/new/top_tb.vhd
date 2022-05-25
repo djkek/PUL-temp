@@ -39,8 +39,9 @@ signal LED2 : std_logic := '0';
 signal LED3 : std_logic := '0'; -- docelowa temp
 signal LED0_R : std_logic := '0'; -- powy?ej docelowej
 
-signal testADC : std_logic_vector(14 downto 0) := "1HL01HL01HL0---";
+signal testADC : std_logic_vector(14 downto 0) := "1HL01HL01HL0XXX";
 signal counter : integer := 0;
+signal index : integer := 0;
 
 begin
 
@@ -57,7 +58,10 @@ begin
 	if ADC_CS = '0' and counter < 15 then
 	   if falling_edge(ADC_CLK) then
 	       counter <= counter + 1;
-	       ADC_DOUT <= testADC(counter);  
+	       if counter >= 2 then
+	       ADC_DOUT <= testADC(index);  
+	       index <= index + 1;
+	       end if;
 	   end if;
 	end if;
 	if ADC_CS = '1' and counter = 15 then
