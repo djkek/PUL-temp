@@ -28,7 +28,6 @@ signal State, StateNext : stany := Idle;
 
 signal timecounter : integer := 0;
 signal timedone : std_logic := '0';
---signal timetocount : integer := 100; --ms - czas od rozpoczecia grzania do wykonania pomiaru
 
 signal bitcounter : integer := 0;
 signal bitdone : std_logic := '0';
@@ -44,12 +43,8 @@ signal Clock_kHz : std_logic := '0';
 signal clockcounter : std_logic_vector(13 downto 0) := (others => '0');
 
 signal clockfrequency : integer := 500; --kHz
---signal measureperiod : integer := 10; --ms
 
 signal PWM_OUT : std_logic := '0';
-
---signal slope_target : std_logic_vector(7 downto 0) := (others => '0');
---signal slope : std_logic_vector(7 downto 0) := (others => '0');
 
 begin
 
@@ -193,7 +188,8 @@ if rising_edge(Clock_kHz) then
             end if;
             if bitcounter = 15 then
                 bitdone <= '1';
-                temp <= (to_integer(temp_ADC) - 400)/20;
+                --temp <= (to_integer(temp_ADC) - 400)/20;
+                temp <= ((to_integer(temp_ADC))*10 - 4000)/195;
             end if;
         end if;
     else
@@ -206,13 +202,13 @@ end process receive_temp;
 FF_control: process(temp)
 begin
     if (temp < 25) then
-        pwm_ff <= "01111101000000"; -- 80%
+        pwm_ff <= "01011101110000"; -- 60%
     elsif (temp < 30) then
         pwm_ff <= "01011101110000"; -- 60%
-    elsif (temp < 35) then
-        pwm_ff <= "01001110001000"; -- 50%
-    elsif (temp > 35) then
-        pwm_ff <= "01000110010100"; -- 45%
+    elsif (temp < 40) then
+        pwm_ff <= "10001100101000"; -- 90%
+    elsif (temp = 40) then
+        pwm_ff <= "01011101110000"; -- 60%
     end if;
 end process FF_control;
 
